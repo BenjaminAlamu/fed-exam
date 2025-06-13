@@ -205,7 +205,7 @@ export default function App({ tickets }: AppProps) {
     }
 
     timeoutRef.current = setTimeout(() => {
-      router.get('/', value ? { search: value.trim() } : {}, { preserveState: true, replace: true })
+      router.get('/', value ? { search: value.trim() } : {}, { preserveState: false, replace: true })
     }, 500)
   }, [])
 
@@ -222,10 +222,12 @@ export default function App({ tickets }: AppProps) {
     )
   }
 
-  const ticketData =
-    itemsToShow.filter((t) =>
+  const ticketData = tickets.data
+    .filter((t) =>
       (t.title.toLowerCase() + t.content.toLowerCase()).includes(search.toLowerCase())
-    ) || []
+    )
+    .filter((t) => !hiddenItems.some((hidden) => hidden.id === t.id));
+
 
   return (
     <>
