@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Head } from '@inertiajs/react'
+import { Head, router } from '@inertiajs/react'
 
 export type Ticket = {
   id: string
@@ -121,6 +121,7 @@ export default function App({ tickets }: AppProps) {
   const [search, setSearch] = useState('')
   const [hiddenItems, setHiddenItems] = useState<Ticket[]>([])
   const [itemsToShow, setItemsToShow] = useState(tickets?.data || [])
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 
   const handleHideItem = (id: string) => {
@@ -132,6 +133,13 @@ export default function App({ tickets }: AppProps) {
 
   const handleSearch = useCallback(function handleSearch(value: string) {
     setSearch(value)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      router.get('/', value ? { search: value.trim() } : {}, { preserveState: true, replace: true })
+    }, 500)
   }, [])
 
   const handleRestoreItems = () => {
