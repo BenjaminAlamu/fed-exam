@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Head } from '@inertiajs/react'
 
 export type Ticket = {
@@ -22,40 +22,86 @@ interface AppProps {
   }
 }
 
+function SingleTicket({ ticket, hideItem }: { ticket: Ticket, hideItem: (id: string) => void }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [shouldShowToggle, setShouldShowToggle] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const checkTextOverflow = () => {
+      if (textRef.current) {
+        const lineHeight = parseInt(getComputedStyle(textRef.current).lineHeight);
+        const maxHeight = lineHeight * 3;
+        setShouldShowToggle(textRef.current.scrollHeight > maxHeight);
+      }
+    };
+
+    checkTextOverflow();
+    window.addEventListener('resize', checkTextOverflow);
+    return () => window.removeEventListener('resize', checkTextOverflow);
+  }, [ticket.content]);
+
+  return (
+    <li className="bg-white border border-sand-7 rounded-lg p-6 hover:border-sand-8 hover:shadow-sm transition duration-200 relative">
+      <button
+        className="text-xs text-sand-12 font-semibold absolute top-6 right-6"
+        onClick={() => hideItem(ticket.id)}
+      >
+        Hide
+      </button>
+      <h5 className="text-lg font-semibold text-sand-12 mb-2">{ticket.title}</h5>
+
+      <div className="mb-2">
+        <p
+          ref={textRef}
+          className="text-xs text-lighttext-sand-12"
+          style={{
+            display: !isExpanded && shouldShowToggle ? '-webkit-box' : 'block',
+            WebkitLineClamp: !isExpanded && shouldShowToggle ? 3 : 'unset',
+            WebkitBoxOrient: !isExpanded && shouldShowToggle ? 'vertical' : 'unset',
+            overflow: !isExpanded && shouldShowToggle ? 'hidden' : 'visible'
+          }}
+        >
+          {ticket.content}
+        </p>
+
+        {shouldShowToggle && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium mt-1 block"
+          >
+            {isExpanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+
+      <footer>
+        <div className="text-sm text-sand-10">
+          By {ticket.userEmail} | {formatDate(ticket.creationTime)}
+        </div>
+      </footer>
+
+      {ticket.labels && ticket?.labels?.length > 0 && (
+        <div className='flex flex-wrap gap-x-2 justify-end'>
+          {ticket.labels.map((label) => (
+            <div
+              key={label}
+              className="border border-blue-200 rounded-md bg-blue-100 text-sand-11 text-xs px-2 py-1 font-medium whitespace-nowrap"
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+      )}
+    </li>
+  );
+}
+
 function TicketsList({ tickets, hideItem }: { tickets: Ticket[], hideItem: (id: string) => void }) {
   return (
     <ul className="space-y-4">
       {tickets.map((ticket) => (
-        <li
-          key={ticket.id}
-          className="bg-white border border-sand-7 rounded-lg p-6 hover:border-sand-8 hover:shadow-sm transition duration-200 relative"
-        >
-          <button
-            className="text-xs text-sand-12 font-semibold absolute top-6 right-6"
-            onClick={() => hideItem(ticket.id)}
-          >
-            Hide
-          </button>
-          <h5 className="text-lg font-semibold text-sand-12 mb-2">{ticket.title}</h5>
-          <p className="text-xs text-lighttext-sand-12 mb-2">{ticket.content}</p>
-          <footer>
-            <div className="text-sm text-sand-10">
-              By {ticket.userEmail} | {formatDate(ticket.creationTime)}
-            </div>
-          </footer>
-          {ticket.labels && ticket?.labels?.length > 0 && (
-            <div className='flex flex-wrap gap-x-2 justify-end'>
-              {ticket.labels.map((label) => (
-                <div
-                  key={label}
-                  className="border border-blue-200 rounded-md bg-blue-100 text-sand-11 text-xs px-2 py-1 font-medium whitespace-nowrap"
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          )}
-        </li>
+        <SingleTicket key={ticket.id} ticket={ticket} hideItem={hideItem} />
       ))}
     </ul>
   )
