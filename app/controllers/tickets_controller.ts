@@ -59,8 +59,15 @@ export default class TicketsController {
     }
 
     const tickets = await query.orderBy('creation_time', 'desc').paginate(page, pageSize)
+    const dashboardData = await Ticket.all()
     return inertia.render('index', {
       tickets: tickets.toJSON(),
+      dashboardData,
     })
+  }
+
+  async dashboard({ inertia }: HttpContext) {
+    const tickets = await Ticket.all()
+    return inertia.render('Dashboard', { tickets })
   }
 }

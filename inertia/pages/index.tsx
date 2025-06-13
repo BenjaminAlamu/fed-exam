@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Head, router } from '@inertiajs/react'
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, Users, AlertTriangle } from 'lucide-react';
 
 export type Ticket = {
   id: string
@@ -9,6 +10,10 @@ export type Ticket = {
   creationTime: number
   userEmail: string
   labels?: string[]
+}
+
+interface DashboardProps {
+  dashboardData: Ticket[];
 }
 
 interface AppProps {
@@ -20,7 +25,8 @@ interface AppProps {
       currentPage: number
       lastPage: number
     }
-  }
+  },
+  dashboardData: Ticket[]
 }
 
 interface PaginationProps {
@@ -28,6 +34,183 @@ interface PaginationProps {
   total: number;
   onChange: (page: number) => void;
 }
+
+interface Analytics {
+  labelData: { name: string; value: number }[];
+  timeline: { month: string; count: number }[];
+  topReporters: { email: string; count: number }[];
+  stats: {
+    totalTickets: number;
+    uniqueReporters: number;
+    mostCommonLabel: string;
+    avgTicketsPerDay: number;
+  };
+}
+
+interface StatCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  value: string | number;
+  subtitle?: string;
+}
+
+
+function SecurityDashboard({ dashboardData }: DashboardProps) {
+  const tickets = dashboardData
+  const analytics: Analytics = useMemo(() => {
+    const labelCounts: Record<string, number> = {};
+    tickets.forEach(ticket => {
+      ticket && ticket.labels && ticket.labels.forEach(label => {
+        labelCounts[label] = (labelCounts[label] || 0) + 1;
+      });
+    });
+
+    const labelData = Object.entries(labelCounts)
+      .map(([label, count]) => ({ name: label, value: count }))
+      .sort((a, b) => b.value - a.value);
+
+    const timelineData: Record<string, number> = {};
+    tickets.forEach(ticket => {
+      const date = new Date(ticket.creationTime);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      timelineData[monthKey] = (timelineData[monthKey] || 0) + 1;
+    });
+
+    const timeline = Object.entries(timelineData)
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+
+    const reporterCounts: Record<string, number> = {};
+    tickets.forEach(ticket => {
+      reporterCounts[ticket.userEmail] = (reporterCounts[ticket.userEmail] || 0) + 1;
+    });
+
+    const topReporters = Object.entries(reporterCounts)
+      .map(([email, count]) => ({ email, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const totalTickets = tickets.length;
+    const uniqueReporters = Object.keys(reporterCounts).length;
+    const mostCommonLabel = labelData[0]?.name || 'None';
+    const avgTicketsPerDay = totalTickets / Math.max(1,
+      (Date.now() - Math.min(...tickets.map(t => t.creationTime))) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      labelData,
+      timeline,
+      topReporters,
+      stats: {
+        totalTickets,
+        uniqueReporters,
+        mostCommonLabel,
+        avgTicketsPerDay: Math.round(avgTicketsPerDay * 10) / 10
+      }
+    };
+  }, [tickets]);
+
+
+  const StatCard = ({ icon: Icon, title, value, subtitle }: StatCardProps) => (
+    <div className="bg-white rounded-lg border p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+        </div>
+        <div className="bg-blue-50 p-3 rounded-full">
+          <Icon className="h-6 w-6 text-blue-600" />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            icon={AlertTriangle}
+            title="Total Issues"
+            value={analytics.stats.totalTickets}
+            subtitle="All security issues"
+          />
+          <StatCard
+            icon={Users}
+            title="Unique Reporters"
+            value={analytics.stats.uniqueReporters}
+            subtitle="Different email addresses"
+          />
+          <StatCard
+            icon={TrendingUp}
+            title="Avg. per Day"
+            value={analytics.stats.avgTicketsPerDay}
+            subtitle="Issues reported daily"
+          />
+          <StatCard
+            icon={Calendar}
+            title="Top Label"
+            value={analytics.stats.mostCommonLabel}
+            subtitle="Most common severity"
+          />
+        </div>
+
+        <div className="bg-white rounded-lg border p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Issues Over Time</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={analytics.timeline}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#3B82F6"
+                strokeWidth={3}
+                dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white rounded-lg border p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Issues</h3>
+          <div className="space-y-3">
+            {tickets
+              .sort((a, b) => b.creationTime - a.creationTime)
+              .slice(0, 5)
+              .map(ticket => (
+                <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 truncate">{ticket.title}</h4>
+                    <p className="text-sm text-gray-600">
+                      {ticket.userEmail} • {new Date(ticket.creationTime).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    {ticket.labels.slice(0, 2).map(label => (
+                      <span key={label} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                        {label}
+                      </span>
+                    ))}
+                    {ticket.labels.length > 2 && (
+                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
+                        +{ticket.labels.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div >
+  );
+}
+
 
 function Pagination({ current, total, onChange }: PaginationProps) {
   if (total <= 1) return null;
@@ -184,12 +367,12 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
   )
 }
 
-export default function App({ tickets }: AppProps) {
+export default function App({ tickets, dashboardData }: AppProps) {
   const [search, setSearch] = useState('')
   const [hiddenItems, setHiddenItems] = useState<Ticket[]>([])
   const [itemsToShow, setItemsToShow] = useState(tickets?.data || [])
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
+  const [showDashboard, setShowDashboard] = useState(true)
 
   const handleHideItem = (id: string) => {
     const itemToBeHidden = itemsToShow.find((item) => item.id === id)
@@ -246,26 +429,36 @@ export default function App({ tickets }: AppProps) {
                 onChange={(e) => handleSearch(e.target.value)}
                 value={search}
               />
+
+
             </header>
-
+            <main className='w-full flex justify-end'>
+              <button className="text-sm text-sand-11 mb-4 " onClick={() => setShowDashboard(!showDashboard)}>
+                {showDashboard ? "Hide dashboard" : "Show dashboard"}
+              </button>
+            </main>
             {tickets && (
-              <div className="flex gap-x-2 items-center">
-                <p className='text-sm text-sand-11 mb-4'>Showing {ticketData.length} of {tickets.meta.total} issues</p>
+              <>
+                {showDashboard && <SecurityDashboard dashboardData={dashboardData} />}
 
-                {hiddenItems.length > 0 && (
-                  <span className="text-sm text-sand-11 mb-4">({hiddenItems.length} hidden ticket{hiddenItems.length > 1 && 's'})</span>
-                )}
+                <div className="flex gap-x-2 items-center">
+                  <p className='text-sm text-sand-11 mb-4'>Showing {ticketData.length} of {tickets.meta.total} issues</p>
 
-                {hiddenItems.length > 0 && (
-                  <button className="text-sm text-sand-11 mb-4" onClick={handleRestoreItems}>
-                    Restore
-                  </button>
-                )}
-              </div>
+                  {hiddenItems.length > 0 && (
+                    <span className="text-sm text-sand-11 mb-4">({hiddenItems.length} hidden ticket{hiddenItems.length > 1 && 's'})</span>
+                  )}
+
+                  {hiddenItems.length > 0 && (
+                    <button className="text-sm text-sand-11 mb-4" onClick={handleRestoreItems}>
+                      Restore
+                    </button>
+                  )}
+                </div></>
             )}
 
             {ticketData.length > 0 ? (
               <>
+
                 <TicketsList tickets={ticketData} hideItem={handleHideItem} />
                 <Pagination current={tickets.meta.currentPage} total={Math.ceil(tickets.meta.total / tickets.meta.perPage)} onChange={handlePageChange} />
               </>

@@ -11,3 +11,4 @@ import router from '@adonisjs/core/services/router'
 const TicketsController = () => import('#controllers/tickets_controller')
 
 router.get('/', [TicketsController, 'index'])
+router.get('/dashboard', [TicketsController, 'dashboard'])
