@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Head, router } from '@inertiajs/react'
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export type Ticket = {
   id: string
@@ -21,6 +22,72 @@ interface AppProps {
     }
   }
 }
+
+interface PaginationProps {
+  current: number;
+  total: number;
+  onChange: (page: number) => void;
+}
+
+function Pagination({ current, total, onChange }: PaginationProps) {
+  if (total <= 1) return null;
+
+  const pages: (number | string)[] = [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i);
+    }
+  } else {
+    pages.push(1);
+
+    if (current <= 3) {
+      pages.push(2, 3, 4, '...', total);
+    } else if (current >= total - 2) {
+      pages.push('...', total - 3, total - 2, total - 1, total);
+    } else {
+      pages.push('...', current - 1, current, current + 1, '...', total);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <button
+        onClick={() => onChange(current - 1)}
+        disabled={current === 1}
+        className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      {pages.map((page, i) => (
+        page === '...' ? (
+          <span key={`ellipsis-${i}`} className="px-3 py-2 text-gray-400">...</span>
+        ) : (
+          <button
+            key={page}
+            onClick={() => onChange(page as number)}
+            className={`px-3 py-2 rounded text-sm ${current === page
+              ? 'bg-blue-500 text-white'
+              : 'hover:bg-gray-100'
+              }`}
+          >
+            {page}
+          </button>
+        )
+      ))}
+
+      <button
+        onClick={() => onChange(current + 1)}
+        disabled={current === total}
+        className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+}
+
 
 function SingleTicket({ ticket, hideItem }: { ticket: Ticket, hideItem: (id: string) => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -147,6 +214,14 @@ export default function App({ tickets }: AppProps) {
     setItemsToShow(tickets?.data || [])
   }
 
+  const handlePageChange = (page: number) => {
+    router.get(
+      '/',
+      { ...(search && { search: search.trim() }), page },
+      { preserveState: true, replace: true }
+    )
+  }
+
   const ticketData =
     itemsToShow.filter((t) =>
       (t.title.toLowerCase() + t.content.toLowerCase()).includes(search.toLowerCase())
@@ -188,7 +263,10 @@ export default function App({ tickets }: AppProps) {
             )}
 
             {ticketData.length > 0 ? (
-              <TicketsList tickets={ticketData} hideItem={handleHideItem} />
+              <>
+                <TicketsList tickets={ticketData} hideItem={handleHideItem} />
+                <Pagination current={tickets.meta.currentPage} total={Math.ceil(tickets.meta.total / tickets.meta.perPage)} onChange={handlePageChange} />
+              </>
             ) : (
               <EmptyState hasSearch={Boolean(search)} />
             )}

@@ -67,6 +67,7 @@
     "@vinejs/vine": "^3.0.1",
     "better-sqlite3": "^11.10.0",
     "edge.js": "^6.2.1",
+    "lucide-react": "^0.515.0",
     "luxon": "^3.6.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
