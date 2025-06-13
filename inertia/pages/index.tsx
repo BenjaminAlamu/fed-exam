@@ -43,6 +43,18 @@ function TicketsList({ tickets, hideItem }: { tickets: Ticket[], hideItem: (id: 
               By {ticket.userEmail} | {formatDate(ticket.creationTime)}
             </div>
           </footer>
+          {ticket.labels && ticket?.labels?.length > 0 && (
+            <div className='flex flex-wrap gap-x-2 justify-end'>
+              {ticket.labels.map((label) => (
+                <div
+                  key={label}
+                  className="border border-blue-200 rounded-md bg-blue-100 text-sand-11 text-xs px-2 py-1 font-medium whitespace-nowrap"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
         </li>
       ))}
     </ul>
