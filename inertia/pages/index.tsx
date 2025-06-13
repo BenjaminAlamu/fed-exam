@@ -31,6 +31,7 @@ function TicketsList({ tickets }: { tickets: Ticket[] }) {
           className="bg-white border border-sand-7 rounded-lg p-6 hover:border-sand-8 hover:shadow-sm transition duration-200"
         >
           <h5 className="text-lg font-semibold text-sand-12 mb-2">{ticket.title}</h5>
+          <p className="text-xs text-lighttext-sand-12 mb-2">{ticket.content}</p>
           <footer>
             <div className="text-sm text-sand-10">
               By {ticket.userEmail} | {formatDate(ticket.creationTime)}
