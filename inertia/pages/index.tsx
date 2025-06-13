@@ -22,14 +22,20 @@ interface AppProps {
   }
 }
 
-function TicketsList({ tickets }: { tickets: Ticket[] }) {
+function TicketsList({ tickets, hideItem }: { tickets: Ticket[], hideItem: (id: string) => void }) {
   return (
     <ul className="space-y-4">
       {tickets.map((ticket) => (
         <li
           key={ticket.id}
-          className="bg-white border border-sand-7 rounded-lg p-6 hover:border-sand-8 hover:shadow-sm transition duration-200"
+          className="bg-white border border-sand-7 rounded-lg p-6 hover:border-sand-8 hover:shadow-sm transition duration-200 relative"
         >
+          <button
+            className="text-xs text-sand-12 font-semibold absolute top-6 right-6"
+            onClick={() => hideItem(ticket.id)}
+          >
+            Hide
+          </button>
           <h5 className="text-lg font-semibold text-sand-12 mb-2">{ticket.title}</h5>
           <p className="text-xs text-lighttext-sand-12 mb-2">{ticket.content}</p>
           <footer>
@@ -55,13 +61,28 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
 
 export default function App({ tickets }: AppProps) {
   const [search, setSearch] = useState('')
+  const [hiddenItems, setHiddenItems] = useState<Ticket[]>([])
+  const [itemsToShow, setItemsToShow] = useState(tickets?.data || [])
+
+
+  const handleHideItem = (id: string) => {
+    const itemToBeHidden = itemsToShow.find((item) => item.id === id)
+    if (!itemToBeHidden) return
+    setHiddenItems([...hiddenItems, itemToBeHidden])
+    setItemsToShow(itemsToShow.filter((item) => item.id !== id))
+  }
 
   const handleSearch = useCallback(function handleSearch(value: string) {
     setSearch(value)
   }, [])
 
+  const handleRestoreItems = () => {
+    setHiddenItems([])
+    setItemsToShow(tickets?.data || [])
+  }
+
   const ticketData =
-    tickets?.data.filter((t) =>
+    itemsToShow.filter((t) =>
       (t.title.toLowerCase() + t.content.toLowerCase()).includes(search.toLowerCase())
     ) || []
 
@@ -85,13 +106,23 @@ export default function App({ tickets }: AppProps) {
             </header>
 
             {tickets && (
-              <div className="text-sm text-sand-11 mb-4">
-                Showing {ticketData.length} of {tickets.meta.total} issues
+              <div className="flex gap-x-2 items-center">
+                <p className='text-sm text-sand-11 mb-4'>Showing {ticketData.length} of {tickets.meta.total} issues</p>
+
+                {hiddenItems.length > 0 && (
+                  <span className="text-sm text-sand-11 mb-4">({hiddenItems.length} hidden ticket{hiddenItems.length > 1 && 's'})</span>
+                )}
+
+                {hiddenItems.length > 0 && (
+                  <button className="text-sm text-sand-11 mb-4" onClick={handleRestoreItems}>
+                    Restore
+                  </button>
+                )}
               </div>
             )}
 
             {ticketData.length > 0 ? (
-              <TicketsList tickets={ticketData} />
+              <TicketsList tickets={ticketData} hideItem={handleHideItem} />
             ) : (
               <EmptyState hasSearch={Boolean(search)} />
             )}
