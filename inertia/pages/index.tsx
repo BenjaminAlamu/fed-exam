@@ -191,14 +191,14 @@ function SecurityDashboard({ dashboardData }: DashboardProps) {
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    {ticket.labels.slice(0, 2).map(label => (
+                    {ticket.labels && ticket.labels.slice(0, 2).map(label => (
                       <span key={label} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
                         {label}
                       </span>
                     ))}
-                    {ticket.labels.length > 2 && (
+                    {ticket.labels && ticket.labels.length > 2 && (
                       <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                        +{ticket.labels.length - 2}
+                        +{ticket.labels && ticket.labels.length - 2}
                       </span>
                     )}
                   </div>
@@ -271,6 +271,35 @@ function Pagination({ current, total, onChange }: PaginationProps) {
   );
 }
 
+const CustomLabel = ({ text }: { text: string }) => {
+  const severity = text.toLowerCase().includes('high') ? 'high'
+    : text.toLowerCase().includes('medium') ? 'medium'
+      : text.toLowerCase().includes('low') ? 'low' : 'default'
+
+  return (
+    <div
+      className="border rounded-md text-xs px-2 py-1 font-medium whitespace-nowrap"
+      data-severity={severity}
+      style={{
+        '--label-border': severity === 'high' ? '#fecaca' :
+          severity === 'medium' ? '#fde68a' :
+            severity === 'low' ? '#bbf7d0' : '#bfdbfe',
+        '--label-bg': severity === 'high' ? '#fee2e2' :
+          severity === 'medium' ? '#fef3c7' :
+            severity === 'low' ? '#dcfce7' : '#dbeafe',
+        '--label-text': severity === 'high' ? '#991b1b' :
+          severity === 'medium' ? '#92400e' :
+            severity === 'low' ? '#166534' : 'currentColor',
+        borderColor: 'var(--label-border)',
+        backgroundColor: 'var(--label-bg)',
+        color: 'var(--label-text)'
+      } as React.CSSProperties}
+    >
+      {text}
+    </div>
+  )
+}
+
 
 function SingleTicket({ ticket, hideItem }: { ticket: Ticket, hideItem: (id: string) => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -334,12 +363,13 @@ function SingleTicket({ ticket, hideItem }: { ticket: Ticket, hideItem: (id: str
       {ticket.labels && ticket?.labels?.length > 0 && (
         <div className='flex flex-wrap gap-x-2 justify-end'>
           {ticket.labels.map((label) => (
-            <div
-              key={label}
-              className="border border-blue-200 rounded-md bg-blue-100 text-sand-11 text-xs px-2 py-1 font-medium whitespace-nowrap"
-            >
-              {label}
-            </div>
+            <CustomLabel key={label} text={label} />
+            // <div
+            //   key={label}
+            //   className="border border-blue-200 rounded-md bg-blue-100 text-sand-11 text-xs px-2 py-1 font-medium whitespace-nowrap"
+            // >
+            //   {label}
+            // </div>
           ))}
         </div>
       )}
@@ -371,7 +401,6 @@ export default function App({ tickets, dashboardData }: AppProps) {
   const [search, setSearch] = useState('')
   const [hiddenItems, setHiddenItems] = useState<Ticket[]>([])
   const [itemsToShow, setItemsToShow] = useState(tickets?.data || [])
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [showDashboard, setShowDashboard] = useState(true)
 
   const handleHideItem = (id: string) => {
@@ -381,16 +410,29 @@ export default function App({ tickets, dashboardData }: AppProps) {
     setItemsToShow(itemsToShow.filter((item) => item.id !== id))
   }
 
-  const handleSearch = useCallback(function handleSearch(value: string) {
-    setSearch(value)
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
+  const useDebounce = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value)
 
-    timeoutRef.current = setTimeout(() => {
-      router.get('/', value ? { search: value.trim() } : {}, { preserveState: false, replace: true })
-    }, 500)
-  }, [])
+    useEffect(() => {
+      const handler = setTimeout(() => setDebouncedValue(value), delay)
+      return () => clearTimeout(handler)
+    }, [value, delay])
+
+    return debouncedValue
+  }
+
+  const debouncedSearch = useDebounce(search, 500)
+
+  useEffect(() => {
+    if (!debouncedSearch && !search) return
+
+    router.get('/',
+      debouncedSearch ? { search: debouncedSearch.trim() } : {},
+      { preserveState: true, replace: true }
+    )
+  }, [debouncedSearch])
+
+  const handleSearch = (value: string) => setSearch(value)
 
   const handleRestoreItems = () => {
     setHiddenItems([])
